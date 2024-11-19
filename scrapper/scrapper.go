@@ -34,5 +34,11 @@ func startScrapper(ctx context.Context, config model.Config) error {
 			return fmt.Errorf("fail to populate users and agencies data: %w", err)
 		}
 	}
+
+	err := StartLaggerScrapper(ctx, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/ledger")
+	if err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("lagger scrapper failed with error : %w", err)
+	}
 	return nil
 }

@@ -31,7 +31,7 @@ func NewUsersDB(agencyName string) (*UsersDB, error) {
 		return nil, err
 	}
 
-	for _, record := range records {
+	for index, record := range records {
 		accountNumber, err := strconv.ParseInt(record[3], 10, 64)
 		if err != nil {
 			return nil, err
@@ -41,7 +41,7 @@ func NewUsersDB(agencyName string) (*UsersDB, error) {
 			return nil, err
 		}
 		db.users[record[0]] = &model.User{
-			ID:            record[0],
+			ID:            index,
 			FirstName:     record[1],
 			LastName:      record[2],
 			AccountNumber: accountNumber,
