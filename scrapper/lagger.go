@@ -3,6 +3,7 @@ package scrapper
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/model"
@@ -12,8 +13,18 @@ import (
 
 const basePath = "#DataTables_Table_1 > tbody > tr"
 
-func StartLaggerScrapper(ctx context.Context, laggerURL string) error {
+// data/AgeilityatBearCreek/abnerclaire_8108/laggers/lagger.pdf
+func StartLaggerScrapper(ctx context.Context, laggerURL string, userDataPath string) error {
+	userDataPath = fmt.Sprintf("%s/laggers", userDataPath)
+	file, _ := os.Stat(userDataPath + "/lagger.pdf")
+	if file.Name() != "" {
+		fmt.Printf("Lagger file found for LaggerDataPath: %s", laggerURL)
+		return nil
+	}
+
 	err := chromedp.Run(ctx,
+		chromedp.Navigate(laggerURL),
+		chromedp.Sleep(20*time.Second), // Adjust this time as needed
 		chromedp.Navigate(laggerURL),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 		chromedp.WaitVisible(`#cust-btn-show-all-children`, chromedp.ByID),
@@ -22,11 +33,13 @@ func StartLaggerScrapper(ctx context.Context, laggerURL string) error {
 	if err != nil {
 		return err
 	}
+
 	laggerGroup, err := scrapeLaggerGroups(ctx)
 	if err != nil {
 		return err
 	}
-	err = storage.StoreLaggerGroupsToPDF("laggers.pdf", laggerGroup)
+	fileName := fmt.Sprintf("%s/lagger.pdf", userDataPath)
+	err = storage.StoreLaggerGroupsToPDF(fileName, laggerGroup)
 	if err != nil {
 		return err
 	}
@@ -41,7 +54,7 @@ func scrapeLagger(ctx context.Context, groupPath string) ([]*model.LaggerGroup, 
 			return nil, err
 		}
 		lagger = append(lagger, groups...)
-		hasNextPage, err := hasNextPage(ctx)
+		hasNextPage, err := hasNextPage(ctx, "#DataTables_Table_1_next")
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +161,7 @@ func scrapeTbody(ctx context.Context, bodyPath string) ([]*model.Lagger, error) 
 	// Run chromedp tasks
 	err = chromedp.Run(ctx,
 		chromedp.Evaluate(fmt.Sprintf("document.querySelectorAll('%s > tr').length", bodyPath), &numberOfRecords),
-	)   
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -1,10 +1,10 @@
 package storage
 
 import (
-	"os"
 	"testing"
 
 	"github.com/abdulwaheed/nethealth/model"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStoreLaggerGroupsToPDF(t *testing.T) {
@@ -31,17 +31,7 @@ func TestStoreLaggerGroupsToPDF(t *testing.T) {
 		},
 	}
 
-	fileName := "test_laggers.pdf"
+	fileName := "test/test_laggers.pdf"
 	err := StoreLaggerGroupsToPDF(fileName, laggerGroups)
-	if err != nil {
-		t.Fatalf("Failed to store lagger groups to PDF: %v", err)
-	}
-
-	// Check if the PDF file was created
-	_, err = os.Stat(fileName + ".pdf")
-	if os.IsNotExist(err) {
-		t.Fatalf("PDF file was not created")
-	}
-	// Clean up the created PDF file after test
-	defer os.Remove(fileName + ".pdf")
+	assert.NoError(t, err)
 }

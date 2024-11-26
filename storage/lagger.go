@@ -49,18 +49,6 @@ func StoreLaggerGroupsToPDF(fileName string, laggerGroups []*model.LaggerGroup) 
 		renderLagger(m, group.EstimatedAdjustments)
 
 		m.AddRow(20)
-
-		// pdf.Ln(10)
-		// pdf.Cell(40, 10, "Estimated Adjustments:")
-		// pdf.Ln(8)
-
-		// pdf.SetFillColor(224, 235, 255)
-		// pdf.SetDrawColor(128, 0, 0)
-		// pdf.SetLineWidth(.2)
-		// renderHeader(pdf)
-		// for _, adjustment := range group.EstimatedAdjustments {
-		// 	renderLagger(pdf, adjustment)
-		// }
 	}
 
 	document, err := m.Generate()
@@ -87,49 +75,17 @@ func renderLagger(m core.Maroto, lagger []*model.Lagger) {
 
 	for _, lagger := range lagger {
 		recordCols := make([]core.Col, 0)
-		values := []string{lagger.TxDate, lagger.Type, lagger.ControlNumber, lagger.Description, lagger.Seq, lagger.ServiceDate, lagger.Category, lagger.DBAmount, lagger.CRAmount, lagger.Balance, lagger.PDFLink}
+		values := []string{lagger.TxDate, lagger.Type, lagger.ControlNumber, lagger.Description, lagger.Seq, lagger.ServiceDate, lagger.Category, lagger.DBAmount, lagger.CRAmount, lagger.Balance, lagger.UploadedLink}
 		for i, value := range values {
 			if i == len(values)-1 && value != "" {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), "Claim", props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3, Hyperlink: &value}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), "Claim", props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3, Hyperlink: &value}))
 			} else if i == 2 {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), sterializeAccountNumber(value), props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), sterializeAccountNumber(value), props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3}))
 			} else {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3}))
 			}
 		}
 		m.AddAutoRow(recordCols...)
-	}
-}
-
-func getDarkGrayColor() *props.Color {
-	return &props.Color{
-		Red:   55,
-		Green: 55,
-		Blue:  55,
-	}
-}
-
-func getGrayColor() *props.Color {
-	return &props.Color{
-		Red:   200,
-		Green: 200,
-		Blue:  200,
-	}
-}
-
-func getBlueColor() *props.Color {
-	return &props.Color{
-		Red:   10,
-		Green: 10,
-		Blue:  150,
-	}
-}
-
-func getRedColor() *props.Color {
-	return &props.Color{
-		Red:   150,
-		Green: 10,
-		Blue:  10,
 	}
 }
 

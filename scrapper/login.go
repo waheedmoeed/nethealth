@@ -17,7 +17,7 @@ func login(ctx context.Context, email string, password string) error {
 		// Open the login page
 		chromedp.Navigate(loginURL),
 
-		chromedp.Sleep(60*time.Second), // Adjust this time as needed
+		chromedp.Sleep(40*time.Second), // Adjust this time as needed
 		// Wait for the page to load
 		chromedp.WaitVisible(`#userName`, chromedp.ByQuery),
 
@@ -29,7 +29,7 @@ func login(ctx context.Context, email string, password string) error {
 		chromedp.Click(`#container > div > div > div.login-screen > div.login-controls > button`, chromedp.ByQuery),
 
 		// Wait for navigation or a specific element that appears after login
-		chromedp.Sleep(60*time.Second), // Adjust this time as needed
+		chromedp.Sleep(40*time.Second), // Adjust this time as needed
 		// Wait for redirection to the target page by waiting for an element unique to that page
 		chromedp.WaitVisible(`#s2id_facility_search`, chromedp.ByID),
 	)

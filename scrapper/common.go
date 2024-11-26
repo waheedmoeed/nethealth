@@ -6,12 +6,12 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func hasNextPage(ctx context.Context) (bool, error) {
+func hasNextPage(ctx context.Context, tag string) (bool, error) {
 	var nextClick string
 	var found bool
 	err := chromedp.Run(ctx,
-		chromedp.OuterHTML(`#patientSearch_tbl_next`, &nextClick, chromedp.ByID),
-		chromedp.AttributeValue(`#patientSearch_tbl_next`, "class", &nextClick, &found, chromedp.ByID),
+		chromedp.OuterHTML(tag, &nextClick, chromedp.ByID),
+		chromedp.AttributeValue(tag, "class", &nextClick, &found, chromedp.ByID),
 	)
 	if err != nil {
 		return false, err
