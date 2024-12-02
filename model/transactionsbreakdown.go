@@ -1,5 +1,7 @@
 package model
 
+import "strings"
+
 type TransactionDetail struct {
 	ServiceDate          string                  `json:"serviceDate"`
 	ServiceCode          string                  `json:"serviceCode"`
@@ -23,4 +25,16 @@ type TransactionBreakdown struct {
 
 func (t *TransactionDetail) GetDetailedName() string {
 	return t.ServiceDate + " - " + t.ServiceCode + " - " + t.Description
+}
+
+func (t *TransactionBreakdown) GetFileName() string {
+	return strings.ReplaceAll(t.Date+"_"+t.ResonCode+"_"+t.Batch, "/", "_")
+}
+
+func (t *TransactionBreakdown) GetFilePath(user *User) string {
+	return user.GetUserDataRoomPath() + "/transactionbreakdowns/" + t.GetFileName()
+}
+
+func (t *TransactionBreakdown) GetUploadedLink(user *User) string {
+	return BUCKET_URL + user.GetUserDataRoomPath() + "/transactionbreakdowns/" + t.GetFileName() + ".pdf"
 }

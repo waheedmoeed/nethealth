@@ -11,10 +11,10 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func StartAgingSummaryScrapper(ctx context.Context, agingSummaryUrl string, userDataPath string) error {
+func StartAgingSummaryScrapper(ctx context.Context, user *model.User, agingSummaryUrl string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/agingsummary", userDataPath)
 	file, _ := os.Stat(userDataPath + "/agingsummary.pdf")
-	if  file != nil &&file.Name() != "" {
+	if file != nil && file.Name() != "" {
 		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
 		return nil
 	}

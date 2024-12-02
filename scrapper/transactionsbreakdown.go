@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/abdulwaheed/nethealth/leveldb"
 	"github.com/abdulwaheed/nethealth/model"
 	"github.com/abdulwaheed/nethealth/storage"
 	"github.com/chromedp/chromedp"
 )
 
-func StartTransactionDetailScrapper(ctx context.Context, transactionDetailsUrl string, userDataPath string) error {
+func StartTransactionDetailScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, transactionDetailsUrl string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/transactionbreakdowns", userDataPath)
 	file, _ := os.Stat(userDataPath + "/transactionbreakdown.pdf")
 	if file != nil && file.Name() != "" {
@@ -30,10 +32,16 @@ func StartTransactionDetailScrapper(ctx context.Context, transactionDetailsUrl s
 	if err != nil {
 		return err
 	}
-	transactions, err := scrapeTransactionDetails(ctx)
+	transactions, err := scrapeTransactionDetails(ctx, user)
 	if err != nil {
 		return err
 	}
+
+	err = addTransactionBreakdownPDFDownloadJobs(user, transactions)
+	if err != nil {
+		return fmt.Errorf("failed to add claim PDF download jobs: %w", err)
+	}
+
 	err = storage.StoreTransactionDetailsToPDF(userDataPath+"/transactionbreakdown.pdf", transactions)
 	if err != nil {
 		return err
@@ -41,11 +49,11 @@ func StartTransactionDetailScrapper(ctx context.Context, transactionDetailsUrl s
 	return nil
 }
 
-func scrapeTransactionDetails(ctx context.Context) ([]*model.TransactionDetail, error) {
+func scrapeTransactionDetails(ctx context.Context, user *model.User) ([]*model.TransactionDetail, error) {
 	transactions := make([]*model.TransactionDetail, 0)
 
 	for {
-		transaction, err := scrapeTransactionDetailsTbody(ctx)
+		transaction, err := scrapeTransactionDetailsTbody(ctx, user)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +75,7 @@ func scrapeTransactionDetails(ctx context.Context) ([]*model.TransactionDetail, 
 	return transactions, nil
 }
 
-func scrapeTransactionDetailsTbody(ctx context.Context) ([]*model.TransactionDetail, error) {
+func scrapeTransactionDetailsTbody(ctx context.Context, user *model.User) ([]*model.TransactionDetail, error) {
 	records := []*model.TransactionDetail{}
 	// Run chromedp tasks
 
@@ -109,7 +117,7 @@ func scrapeTransactionDetailsTbody(ctx context.Context) ([]*model.TransactionDet
 		}
 
 		if hasBreakdown != "dataTables_empty" && !found {
-			breakdowns, err := scrapeTransactionDetailsBreakdown(ctx)
+			breakdowns, err := scrapeTransactionDetailsBreakdown(ctx, user)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse transaction breakdown at %v, %w", record.ServiceDate, err)
 			}
@@ -121,11 +129,11 @@ func scrapeTransactionDetailsTbody(ctx context.Context) ([]*model.TransactionDet
 	return records, nil
 }
 
-func scrapeTransactionDetailsBreakdown(ctx context.Context) ([]*model.TransactionBreakdown, error) {
+func scrapeTransactionDetailsBreakdown(ctx context.Context, user *model.User) ([]*model.TransactionBreakdown, error) {
 	transactions := make([]*model.TransactionBreakdown, 0)
 
 	for {
-		transaction, err := scrapeTransactionDetailsBreakdownTbody(ctx)
+		transaction, err := scrapeTransactionDetailsBreakdownTbody(ctx, user)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +155,7 @@ func scrapeTransactionDetailsBreakdown(ctx context.Context) ([]*model.Transactio
 	return transactions, nil
 }
 
-func scrapeTransactionDetailsBreakdownTbody(ctx context.Context) ([]*model.TransactionBreakdown, error) {
+func scrapeTransactionDetailsBreakdownTbody(ctx context.Context, user *model.User) ([]*model.TransactionBreakdown, error) {
 	records := []*model.TransactionBreakdown{}
 	// Run chromedp tasks
 
@@ -179,8 +187,29 @@ func scrapeTransactionDetailsBreakdownTbody(ctx context.Context) ([]*model.Trans
 		if err != nil {
 			return nil, err
 		}
+		//update the Upload PDF LINK
+		if record.PDFLink != "" {
+			record.UploadedLink = record.GetUploadedLink(user)
+		}
 		records = append(records, record)
 	}
 
 	return records, nil
+}
+
+func addTransactionBreakdownPDFDownloadJobs(user *model.User, transactions []*model.TransactionDetail) error {
+	jobs := []*model.Job{}
+	for _, transaction := range transactions {
+		for _, record := range transaction.TransactionBreakdown {
+			if record.PDFLink != "" {
+				jobs = append(jobs, &model.Job{
+					FileName: record.GetFileName(),
+					FilePath: record.GetFilePath(user),
+					Download: false,
+					PDFLink:  record.PDFLink,
+				})
+			}
+		}
+	}
+	return leveldb.PutJobs(jobs)
 }

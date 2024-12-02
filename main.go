@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/abdulwaheed/nethealth/model"
 	"github.com/abdulwaheed/nethealth/scrapper"
@@ -18,8 +19,28 @@ func main() {
 	if err != nil {
 		panic("fail to get the credential files")
 	}
-	err = scrapper.StartScrapper(context.Background(), config)
-	fmt.Println(err)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		err = scrapper.StartPDFDownloader(context.Background(), config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		err = scrapper.StartScrapper(context.Background(), config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	wg.Wait()
+
 	// totalRecords, err := countTotalRecords()
 	// if err != nil {
 	// 	log.Fatal(err)

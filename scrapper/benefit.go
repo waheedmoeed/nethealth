@@ -11,10 +11,10 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func StartBenefitScrapper(ctx context.Context, benefitsUrl string, userDataPath string) error {
+func StartBenefitScrapper(ctx context.Context, user *model.User, benefitsUrl string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/benefits", userDataPath)
 	file, _ := os.Stat(userDataPath + "/benefit.pdf")
-	if  file != nil && file.Name() != "" {
+	if file != nil && file.Name() != "" {
 		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
 		return nil
 	}

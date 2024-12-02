@@ -15,3 +15,15 @@ type Claim struct {
 	PDFLink         string `json:"pdfLink"`
 	UploadedLink    string `json:"uploadedLink"`
 }
+
+func (c *Claim) GetFileName() string {
+	return c.ClaimNumber + "_" + c.PayingAgency
+}
+
+func (c *Claim) GetFilePath(user *User) string {
+	return user.GetUserDataRoomPath() + "/claims/" + c.GetFileName()
+}
+
+func (c *Claim) GetUploadedLink(user *User) string {
+	return BUCKET_URL + user.GetUserDataRoomPath() + "/claims/" + c.GetFileName() + ".pdf"
+}

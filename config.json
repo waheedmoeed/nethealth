@@ -1,5 +1,7 @@
 {
     "email": "Iadler",
     "password":"TestNetHealth@1234567890",
-    "needToPouplateUsers": false
+    "needToPouplateUsers": false,
+    "downloaderUser": "Awaheed",
+    "downloaderPassword":"TestNetHealth@1234567890"
 }

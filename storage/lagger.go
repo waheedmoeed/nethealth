@@ -78,11 +78,11 @@ func renderLagger(m core.Maroto, lagger []*model.Lagger) {
 		values := []string{lagger.TxDate, lagger.Type, lagger.ControlNumber, lagger.Description, lagger.Seq, lagger.ServiceDate, lagger.Category, lagger.DBAmount, lagger.CRAmount, lagger.Balance, lagger.UploadedLink}
 		for i, value := range values {
 			if i == len(values)-1 && value != "" {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), "Claim", props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3, Hyperlink: &value}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), "Claim", props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3, Hyperlink: &value}))
 			} else if i == 2 {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), sterializeAccountNumber(value), props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), sterializeAccountNumber(value), props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3}))
 			} else {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3}))
 			}
 		}
 		m.AddAutoRow(recordCols...)

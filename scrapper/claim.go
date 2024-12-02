@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/abdulwaheed/nethealth/leveldb"
 	"github.com/abdulwaheed/nethealth/model"
 	"github.com/abdulwaheed/nethealth/storage"
 	"github.com/chromedp/chromedp"
 )
 
-func StartClaimsScrapper(ctx context.Context, claimsUrl string, userDataPath string) error {
+func StartClaimsScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, claimsUrl string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/claims", userDataPath)
 	file, _ := os.Stat(userDataPath + "/claim.pdf")
 	if file != nil && file.Name() != "" {
@@ -27,10 +29,16 @@ func StartClaimsScrapper(ctx context.Context, claimsUrl string, userDataPath str
 	if err != nil {
 		return err
 	}
-	claims, err := scrapeClaims(ctx)
+	claims, err := scrapeClaims(ctx, user)
 	if err != nil {
 		return err
 	}
+
+	err = addClaimPDFDownloadJobs(user, mu, claims)
+	if err != nil {
+		return fmt.Errorf("failed to add claim PDF download jobs: %w", err)
+	}
+
 	err = storage.StoreClaimsToPDF(userDataPath+"/claim.pdf", claims)
 	if err != nil {
 		return err
@@ -38,7 +46,7 @@ func StartClaimsScrapper(ctx context.Context, claimsUrl string, userDataPath str
 	return nil
 }
 
-func scrapeClaims(ctx context.Context) ([]*model.Claim, error) {
+func scrapeClaims(ctx context.Context, user *model.User) ([]*model.Claim, error) {
 	claims := make([]*model.Claim, 0)
 
 	var nextClick string
@@ -56,7 +64,7 @@ func scrapeClaims(ctx context.Context) ([]*model.Claim, error) {
 	}
 
 	for {
-		claim, err := scrapeClaimTbody(ctx)
+		claim, err := scrapeClaimTbody(ctx, user)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +86,7 @@ func scrapeClaims(ctx context.Context) ([]*model.Claim, error) {
 	return claims, nil
 }
 
-func scrapeClaimTbody(ctx context.Context) ([]*model.Claim, error) {
+func scrapeClaimTbody(ctx context.Context, user *model.User) ([]*model.Claim, error) {
 	records := []*model.Claim{}
 	// Run chromedp tasks
 
@@ -113,8 +121,27 @@ func scrapeClaimTbody(ctx context.Context) ([]*model.Claim, error) {
 		if err != nil {
 			return nil, err
 		}
+		//update the Upload PDF LINK
+		if record.PDFLink != "" {
+			record.UploadedLink = record.GetUploadedLink(user)
+		}
 		records = append(records, record)
 	}
 
 	return records, nil
+}
+
+func addClaimPDFDownloadJobs(user *model.User, mu *sync.Mutex, records []*model.Claim) error {
+	jobs := []*model.Job{}
+	for _, record := range records {
+		if record.PDFLink != "" {
+			jobs = append(jobs, &model.Job{
+				FileName: record.GetFileName(),
+				FilePath: record.GetFilePath(user),
+				Download: false,
+				PDFLink:  record.PDFLink,
+			})
+		}
+	}
+	return leveldb.PutJobs(jobs)
 }

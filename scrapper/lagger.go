@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/abdulwaheed/nethealth/leveldb"
 	"github.com/abdulwaheed/nethealth/model"
 	"github.com/abdulwaheed/nethealth/storage"
 	"github.com/chromedp/chromedp"
@@ -13,43 +15,48 @@ import (
 
 const basePath = "#DataTables_Table_1 > tbody > tr"
 
-// data/AgeilityatBearCreek/abnerclaire_8108/laggers/lagger.pdf
-func StartLaggerScrapper(ctx context.Context, laggerURL string, userDataPath string) error {
+func StartLaggerScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, laggerURL string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/laggers", userDataPath)
 	file, _ := os.Stat(userDataPath + "/lagger.pdf")
-	if file.Name() != "" {
+	if file != nil && file.Name() != "" {
 		fmt.Printf("Lagger file found for LaggerDataPath: %s", laggerURL)
 		return nil
 	}
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(laggerURL),
-		chromedp.Sleep(20*time.Second), // Adjust this time as needed
+		chromedp.Sleep(20*time.Second),
 		chromedp.Navigate(laggerURL),
-		chromedp.Sleep(5*time.Second), // Adjust this time as needed
+		chromedp.Sleep(5*time.Second),
 		chromedp.WaitVisible(`#cust-btn-show-all-children`, chromedp.ByID),
 		chromedp.Click(`#cust-btn-show-all-children`, chromedp.ByID),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to navigate and interact with lagger URL: %w", err)
 	}
 
-	laggerGroup, err := scrapeLaggerGroups(ctx)
+	laggerGroup, err := scrapeLaggerGroups(ctx, user)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to scrape lagger groups: %w", err)
 	}
+
+	err = addLaggerPDFDownloadJobs(user, laggerGroup)
+	if err != nil {
+		return fmt.Errorf("failed to add lagger PDF download jobs: %w", err)
+	}
+
 	fileName := fmt.Sprintf("%s/lagger.pdf", userDataPath)
 	err = storage.StoreLaggerGroupsToPDF(fileName, laggerGroup)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to store lagger groups to PDF: %w", err)
 	}
 	return nil
 }
 
-func scrapeLagger(ctx context.Context, groupPath string) ([]*model.LaggerGroup, error) {
+func scrapeLagger(ctx context.Context, user *model.User, groupPath string) ([]*model.LaggerGroup, error) {
 	lagger := make([]*model.LaggerGroup, 0)
 	for {
-		groups, err := scrapeLaggerGroups(ctx)
+		groups, err := scrapeLaggerGroups(ctx, user)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +78,7 @@ func scrapeLagger(ctx context.Context, groupPath string) ([]*model.LaggerGroup, 
 	return lagger, nil
 }
 
-func scrapeLaggerGroups(ctx context.Context) ([]*model.LaggerGroup, error) {
+func scrapeLaggerGroups(ctx context.Context, user *model.User) ([]*model.LaggerGroup, error) {
 	groups := make([]*model.LaggerGroup, 0)
 	numberOfGroups := 0
 	// Run chromedp tasks
@@ -87,7 +94,7 @@ func scrapeLaggerGroups(ctx context.Context) ([]*model.LaggerGroup, error) {
 	}
 	//#DataTables_Table_1 > tbody > tr:nth-child(2) > td > table > tbody:nth-child(2)
 	for i := 1; i <= numberOfGroups; i = i + 2 {
-		group, err := scrapeLaggerGroup(ctx, fmt.Sprintf("%s:nth-child(%d)", basePath, i+1))
+		group, err := scrapeLaggerGroup(ctx, user, fmt.Sprintf("%s:nth-child(%d)", basePath, i+1))
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +112,7 @@ func scrapeLaggerGroups(ctx context.Context) ([]*model.LaggerGroup, error) {
 }
 
 // #DataTables_Table_1 > tbody > tr:nth-child(2) > td > table
-func scrapeLaggerGroup(ctx context.Context, groupPath string) (*model.LaggerGroup, error) {
+func scrapeLaggerGroup(ctx context.Context, user *model.User, groupPath string) (*model.LaggerGroup, error) {
 	groupPath = fmt.Sprintf("%s > td > table > tbody", groupPath)
 	group := &model.LaggerGroup{
 		Laggers:              make([]*model.Lagger, 0),
@@ -125,7 +132,7 @@ func scrapeLaggerGroup(ctx context.Context, groupPath string) (*model.LaggerGrou
 	}
 	//#DataTables_Table_1 > tbody > tr:nth-child(2) > td > table > tbody:nth-child(2)
 	for i := 1; i <= numberOfRecords; i++ {
-		records, err := scrapeTbody(ctx, fmt.Sprintf("%s:nth-child(%d)", groupPath, i+1))
+		records, err := scrapeTbody(ctx, user, fmt.Sprintf("%s:nth-child(%d)", groupPath, i+1))
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +150,7 @@ func scrapeLaggerGroup(ctx context.Context, groupPath string) (*model.LaggerGrou
 }
 
 // #DataTables_Table_1 > tbody > tr:nth-child(2) > td > table > tbody:nth-child(2)
-func scrapeTbody(ctx context.Context, bodyPath string) ([]*model.Lagger, error) {
+func scrapeTbody(ctx context.Context, user *model.User, bodyPath string) ([]*model.Lagger, error) {
 	records := []*model.Lagger{}
 	var isDataRow bool
 	err := chromedp.Run(ctx,
@@ -188,44 +195,45 @@ func scrapeTbody(ctx context.Context, bodyPath string) ([]*model.Lagger, error) 
 		if err != nil {
 			return nil, err
 		}
+		//update the Upload PDF LINK
+		if record.PDFLink != "" {
+			if record.Type == "Adjustment" {
+				record.UploadedLink = record.GetAdjustmentUploadedLink(user)
+			} else {
+				record.UploadedLink = record.GetUploadedLink(user)
+			}
+		}
 		records = append(records, record)
 	}
 
 	return records, nil
 }
 
-// func DownloadLaggerPDF(ctx context.Context, url string) (string, error) {
-// 	var pdf64 string
-// 	err := chromedp.Run(ctx,
-// 		chromedp.Tasks{
-// 			chromedp.ActionFunc(func(ctx context.Context) error {
-// 				tabCtx, cancel := chromedp.NewContext(ctx, chromedp.WithNewTab())
-// 				defer cancel()
-// 				err = chromedp.Run(tabCtx,
-// 					chromedp.Tasks{
-// 						chromedp.Navigate(url),
-// 						chromedp.Click(`#btnDownload`, chromedp.ByID),
-// 						chromedp.Sleep(10 * time.Second),
-// 						chromedp.ActionFunc(func(ctx context.Context) error {
-// 							var pdf []byte
-// 							err = chromedp.DownloadURL(url).WithDownloadPath(".")(&pdf)
-// 							if err != nil {
-// 								return err
-// 							}
-// 							pdf64 = base64.StdEncoding.EncodeToString(pdf)
-// 							return nil
-// 						}),
-// 					})
-// 				if err != nil {
-// 					return err
-// 				}
-// 				return nil
-// 			}),
-// 		})
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	return pdf64, nil
-// }
-//forEach(td => {td.querySelector('a').?link): ""
-//#ledgerrownum-1 > td:nth-child(3)
+func addLaggerPDFDownloadJobs(user *model.User, records []*model.LaggerGroup) error {
+	jobs := []*model.Job{}
+	for _, record := range records {
+
+		for _, lagger := range record.Laggers {
+			if lagger.PDFLink != "" {
+				jobs = append(jobs, &model.Job{
+					FileName: lagger.GetFileName(),
+					FilePath: lagger.GetFilePath(user),
+					Download: false,
+					PDFLink:  lagger.PDFLink,
+				})
+			}
+		}
+
+		for _, lagger := range record.EstimatedAdjustments {
+			if lagger.PDFLink != "" {
+				jobs = append(jobs, &model.Job{
+					FileName: lagger.GetAdjustmentFileName(),
+					FilePath: lagger.GetAdjustmentFilePath(user),
+					Download: false,
+					PDFLink:  lagger.PDFLink,
+				})
+			}
+		}
+	}
+	return leveldb.PutJobs(jobs)
+}

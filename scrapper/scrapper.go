@@ -3,8 +3,8 @@ package scrapper
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/model"
@@ -16,7 +16,7 @@ func StartScrapper(ctx context.Context, config model.Config) error {
 	ctx, cancel := chromedp.NewExecAllocator(ctx, append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))...)
 	defer cancel()
 
-	scrapperContext, cancel := chromedp.NewContext(ctx, chromedp.WithDebugf(log.Printf))
+	scrapperContext, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 
 	err := login(scrapperContext, config.Email, config.Password)
@@ -25,63 +25,95 @@ func StartScrapper(ctx context.Context, config model.Config) error {
 	}
 	fmt.Println("Login Success")
 
-	err = startScrapper(scrapperContext, "./data/AgeilityatBearCreek/abnerclaire_8108")
+	user := &model.User{
+		FirstName:     "Abner",
+		LastName:      "Claire",
+		AccountNumber: 8108,
+		Enity:         "Ageility at Bear Creek",
+		IsMigrated:    false,
+	}
+	err = startScrapper(scrapperContext, user, user.GetUserDataRoomPath())
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func startScrapper(ctx context.Context, userDataPath string) error {
+func startScrapper(ctx context.Context, user *model.User, userDataPath string) error {
+	//It is data room per user
 	err := prepareDataRoomDir(userDataPath)
 	if err != nil {
 		return err
 	}
 
+	// err = createJobFileIfNotExists(user.GetPendingJobFilePath())
+	// if err != nil {
+	// 	return err
+	// }
+
 	var g errgroup.Group
+	var mu sync.Mutex
 
 	startTime := time.Now()
 
 	g.Go(func() error {
 		ledgerCTX, cancel := chromedp.NewContext(ctx)
 		defer cancel()
-		err := StartLaggerScrapper(ledgerCTX, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/ledger", userDataPath)
-		return fmt.Errorf("error while running lagger scrapper: %w", err)
+		err := StartLaggerScrapper(ledgerCTX, user, &mu, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/ledger", userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running lagger scrapper: %w", err)
+		}
+		return nil
 	})
 
 	g.Go(func() error {
 		claimsCTX, cancel := chromedp.NewContext(ctx)
 		defer cancel()
-		err := StartClaimsScrapper(claimsCTX, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/claims", userDataPath)
-		return fmt.Errorf("error while running claims scrapper: %w", err)
+		err := StartClaimsScrapper(claimsCTX, user, &mu, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/claims", userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running claims scrapper: %w", err)
+		}
+		return nil
 	})
 
 	g.Go(func() error {
 		transactionCTX, cancel := chromedp.NewContext(ctx)
 		defer cancel()
-		err := StartTransactionScrapper(transactionCTX, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/transactions", userDataPath)
-		return fmt.Errorf("error while running transaction scrapper: %w", err)
+		err := StartTransactionScrapper(transactionCTX, user, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/transactions", userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running transaction scrapper: %w", err)
+		}
+		return nil
 	})
 
 	g.Go(func() error {
 		benefitCTX, cancel := chromedp.NewContext(ctx)
 		defer cancel()
-		err := StartBenefitScrapper(benefitCTX, "https://p13006.therapy.nethealth.com/Financials#patient/details/28816/benefitsVerification", userDataPath)
-		return fmt.Errorf("error while running benefit scrapper: %w", err)
+		err := StartBenefitScrapper(benefitCTX, user, "https://p13006.therapy.nethealth.com/Financials#patient/details/28816/benefitsVerification", userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running benefit scrapper: %w", err)
+		}
+		return nil
 	})
 
 	g.Go(func() error {
 		agingCTX, cancel := chromedp.NewContext(ctx)
 		defer cancel()
-		err := StartAgingSummaryScrapper(agingCTX, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/agingSummary", userDataPath)
-		return fmt.Errorf("error while running aging summary scrapper: %w", err)
+		err := StartAgingSummaryScrapper(agingCTX, user, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/agingSummary", userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running aging summary scrapper: %w", err)
+		}
+		return nil
 	})
 
 	g.Go(func() error {
 		transactionDetailCTX, cancel := chromedp.NewContext(ctx)
 		defer cancel()
-		err := StartTransactionDetailScrapper(transactionDetailCTX, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/transactions", userDataPath)
-		return fmt.Errorf("error while running transaction detail scrapper: %w", err)
+		err := StartTransactionDetailScrapper(transactionDetailCTX, user, &mu, "https://p13006.therapy.nethealth.com/Financials#patient/details/81808/transactions", userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running transaction detail scrapper: %w", err)
+		}
+		return nil
 	})
 
 	if err := g.Wait(); err != nil {
@@ -110,3 +142,25 @@ func prepareDataRoomDir(userDataPath string) error {
 	}
 	return nil
 }
+
+// // createFileIfNotExists ensures the CSV file exists
+// func createJobFileIfNotExists(filePath string) error {
+// 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+// 		// Create the file with a header
+// 		file, err := os.Create(filePath)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer file.Close()
+
+// 		writer := csv.NewWriter(file)
+// 		defer writer.Flush()
+
+// 		// Write header row
+// 		header := []string{"FileName", "FilePath", "Download", "PDFLink"}
+// 		if err := writer.Write(header); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }

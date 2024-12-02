@@ -11,7 +11,7 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func StartTransactionScrapper(ctx context.Context, transactionsUrl string, userDataPath string) error {
+func StartTransactionScrapper(ctx context.Context, user *model.User, transactionsUrl string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/transactions", userDataPath)
 	file, _ := os.Stat(userDataPath + "/transaction.pdf")
 	if file != nil && file.Name() != "" {
