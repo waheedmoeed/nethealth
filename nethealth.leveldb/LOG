@@ -1,0 +1,34 @@
+=============== Dec 4, 2024 (PKT) ===============
+07:46:46.505627 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+07:46:46.589551 db@open opening
+07:46:46.592420 version@stat F·[] S·0B[] Sc·[]
+07:46:46.628063 db@janitor F·2 G·0
+07:46:46.628331 db@open done T·38.65955ms
+=============== Dec 4, 2024 (PKT) ===============
+08:59:56.624121 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+08:59:56.625171 version@stat F·[] S·0B[] Sc·[]
+08:59:56.625205 db@open opening
+08:59:56.625317 journal@recovery F·1
+08:59:56.626298 journal@recovery recovering @1
+08:59:56.690591 memdb@flush created L0@2 N·11361 S·517KiB "01_..30),v11218":"999..ial,v6576"
+08:59:56.691309 version@stat F·[1] S·517KiB[517KiB] Sc·[0.25]
+08:59:56.764779 db@janitor F·3 G·0
+08:59:56.764838 db@open done T·139.60894ms
+=============== Dec 4, 2024 (PKT) ===============
+09:05:26.991493 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+09:05:26.993271 version@stat F·[1] S·517KiB[517KiB] Sc·[0.25]
+09:05:26.993314 db@open opening
+09:05:26.993470 journal@recovery F·1
+09:05:26.994587 journal@recovery recovering @3
+09:05:26.998252 version@stat F·[1] S·517KiB[517KiB] Sc·[0.25]
+09:05:27.070131 db@janitor F·3 G·0
+09:05:27.070171 db@open done T·76.836393ms
+=============== Dec 4, 2024 (PKT) ===============
+09:07:12.861860 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+09:07:12.863673 version@stat F·[1] S·517KiB[517KiB] Sc·[0.25]
+09:07:12.863718 db@open opening
+09:07:12.863859 journal@recovery F·1
+09:07:12.864776 journal@recovery recovering @5
+09:07:12.865596 version@stat F·[1] S·517KiB[517KiB] Sc·[0.25]
+09:07:12.940412 db@janitor F·3 G·0
+09:07:12.940475 db@open done T·76.730239ms

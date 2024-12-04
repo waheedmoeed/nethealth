@@ -20,7 +20,7 @@ func StartTransactionScrapper(ctx context.Context, user *model.User, transaction
 	}
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(transactionsUrl),
-		chromedp.Sleep(20*time.Second), // Adjust this time as needed
+		chromedp.Sleep(10*time.Second), // Adjust this time as needed
 		chromedp.Navigate(transactionsUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 	)

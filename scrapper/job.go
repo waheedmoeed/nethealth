@@ -16,7 +16,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+var Token = ""
+
 func StartPDFDownloader(ctx context.Context, config model.Config) error {
+	err := loginAndSetAuthKey(ctx, config)
+	if err != nil {
+		return fmt.Errorf("failed to login and set auth key: %w", err)
+	}
+	startTime := time.Now()
+	executeJob(ctx, config)
+	if err != nil {
+		return err
+	}
+	elapsedTime := time.Since(startTime)
+	fmt.Printf("Scrapper finished in %s\n", elapsedTime)
+	return nil
+}
+
+func loginAndSetAuthKey(ctx context.Context, config model.Config) error {
 	scrapperContext, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 	err := login(scrapperContext, config.DownloaderUser, config.DownloaderPassword)
@@ -29,18 +46,11 @@ func StartPDFDownloader(ctx context.Context, config model.Config) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get cookies keys")
 	}
-
-	startTime := time.Now()
-	executeJob(ctx, authKey)
-	if err != nil {
-		return err
-	}
-	elapsedTime := time.Since(startTime)
-	fmt.Printf("Scrapper finished in %s\n", elapsedTime)
+	Token = authKey
 	return nil
 }
 
-func executeJob(ctx context.Context, authKey string) {
+func executeJob(ctx context.Context, config model.Config) {
 	for {
 		jobs, err := leveldb.GetJobs()
 		if err != nil {
@@ -61,13 +71,14 @@ func executeJob(ctx context.Context, authKey string) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := downloadAndSavePDF(jobs[i].PDFLink, jobs[i].FilePath, authKey)
+				err := downloadAndSavePDF(ctx, config, jobs[i].PDFLink, jobs[i].FilePath)
 				if err != nil {
-					fmt.Println("Error downloading file: ", jobs[0].FileName, " Error: ", err)
+					fmt.Println("Error downloading file: ", jobs[0].FilePath, " Error: ", err)
+					return
 				}
 				err = leveldb.DeleteJob(jobs[i].FileName)
 				if err != nil {
-					fmt.Println("Error deleting job: ", jobs[0].FileName, " Error: ", err)
+					fmt.Println("Error deleting job: ", jobs[0].FilePath, " Error: ", err)
 				}
 			}()
 		}
@@ -75,14 +86,14 @@ func executeJob(ctx context.Context, authKey string) {
 	}
 }
 
-func downloadAndSavePDF(url string, filePath string, authKey string) error {
+func downloadAndSavePDF(ctx context.Context, config model.Config, url string, filePath string) error {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 
 	client := &http.Client{}
 	if err != nil {
 		fmt.Println(err)
 	}
-	key := ".ASPXAUTH=" + authKey
+	key := ".ASPXAUTH=" + Token
 	req.Header.Add("Cookie", key)
 
 	res, err := client.Do(req)
@@ -97,6 +108,13 @@ func downloadAndSavePDF(url string, filePath string, authKey string) error {
 	}
 
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusUnauthorized {
+			fmt.Println("Unauthorized")
+			err = loginAndSetAuthKey(ctx, config)
+			if err != nil {
+				return fmt.Errorf("failed to relogin and set auth key: %w", err)
+			}
+		}
 		return fmt.Errorf("bad status: %s", res.Status)
 	}
 

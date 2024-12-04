@@ -20,8 +20,6 @@ func StartAgingSummaryScrapper(ctx context.Context, user *model.User, agingSumma
 	}
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(agingSummaryUrl),
-		chromedp.Sleep(20*time.Second), // Adjust this time as needed
-		chromedp.Navigate(agingSummaryUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 	)
 	if err != nil {
@@ -42,7 +40,7 @@ func scrapeAgingSummary(ctx context.Context) ([]*model.AgingSummary, error) {
 	summary := make([]*model.AgingSummary, 0)
 	var foundRecord string
 	err := chromedp.Run(ctx,
-		chromedp.Sleep(5*time.Second),
+		chromedp.Sleep(2*time.Second),
 		chromedp.InnerHTML("#agingSummary_tbl > tbody > tr > td:nth-child(1)", &foundRecord, chromedp.ByQuery),
 	)
 	if err != nil {

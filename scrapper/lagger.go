@@ -30,12 +30,13 @@ func StartLaggerScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 		chromedp.Sleep(5*time.Second),
 		chromedp.WaitVisible(`#cust-btn-show-all-children`, chromedp.ByID),
 		chromedp.Click(`#cust-btn-show-all-children`, chromedp.ByID),
+		chromedp.Sleep(3*time.Second),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to navigate and interact with lagger URL: %w", err)
 	}
 
-	laggerGroup, err := scrapeLaggerGroups(ctx, user)
+	laggerGroup, err := scrapeLagger(ctx, user)
 	if err != nil {
 		return fmt.Errorf("failed to scrape lagger groups: %w", err)
 	}
@@ -53,8 +54,22 @@ func StartLaggerScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 	return nil
 }
 
-func scrapeLagger(ctx context.Context, user *model.User, groupPath string) ([]*model.LaggerGroup, error) {
+func scrapeLagger(ctx context.Context, user *model.User) ([]*model.LaggerGroup, error) {
 	lagger := make([]*model.LaggerGroup, 0)
+	//check if there is any record at all
+	var nextClick string
+	var found bool
+	err := chromedp.Run(ctx,
+		chromedp.Sleep(5*time.Second),
+		chromedp.AttributeValue("#DataTables_Table_1 > tbody > tr > td", "class", &nextClick, &found, chromedp.ByID),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if nextClick == "dataTables_empty" {
+		return lagger, nil
+	}
 	for {
 		groups, err := scrapeLaggerGroups(ctx, user)
 		if err != nil {
@@ -128,7 +143,7 @@ func scrapeLaggerGroup(ctx context.Context, user *model.User, groupPath string) 
 	}
 	if numberOfRecords == 0 {
 		fmt.Printf("No body found for this group, path: %v", groupPath)
-		return nil, nil
+		return nil, fmt.Errorf("no body found for this group although group is there")
 	}
 	//#DataTables_Table_1 > tbody > tr:nth-child(2) > td > table > tbody:nth-child(2)
 	for i := 1; i <= numberOfRecords; i++ {
@@ -216,7 +231,7 @@ func addLaggerPDFDownloadJobs(user *model.User, records []*model.LaggerGroup) er
 		for _, lagger := range record.Laggers {
 			if lagger.PDFLink != "" {
 				jobs = append(jobs, &model.Job{
-					FileName: lagger.GetFileName(),
+					FileName: lagger.GetFileName() + "_" + fmt.Sprintf("%s", user.AccountNumber),
 					FilePath: lagger.GetFilePath(user),
 					Download: false,
 					PDFLink:  lagger.PDFLink,
@@ -227,7 +242,7 @@ func addLaggerPDFDownloadJobs(user *model.User, records []*model.LaggerGroup) er
 		for _, lagger := range record.EstimatedAdjustments {
 			if lagger.PDFLink != "" {
 				jobs = append(jobs, &model.Job{
-					FileName: lagger.GetAdjustmentFileName(),
+					FileName: lagger.GetAdjustmentFileName() + "_" + fmt.Sprintf("%s", user.AccountNumber),
 					FilePath: lagger.GetAdjustmentFilePath(user),
 					Download: false,
 					PDFLink:  lagger.PDFLink,
@@ -237,3 +252,5 @@ func addLaggerPDFDownloadJobs(user *model.User, records []*model.LaggerGroup) er
 	}
 	return leveldb.PutJobs(jobs)
 }
+
+//#DataTables_Table_1 > tbody > tr:nth-child(2) > td > table > tbody

@@ -2,3 +2,6 @@
 /userscvs/
 /data/
 .vscode
+# Ignore config.json
+config.json
+/nethealth.l

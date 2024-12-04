@@ -23,11 +23,7 @@ func StartTransactionDetailScrapper(ctx context.Context, user *model.User, mu *s
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(transactionDetailsUrl),
-		chromedp.Sleep(20*time.Second), // Adjust this time as needed
-		chromedp.Navigate(transactionDetailsUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
-		chromedp.DoubleClick("#transaction_tbl > tbody > tr:nth-child(1)", chromedp.ByQuery),
-		chromedp.Sleep(8*time.Second), // Adjust this time as needed
 	)
 	if err != nil {
 		return err
@@ -51,6 +47,29 @@ func StartTransactionDetailScrapper(ctx context.Context, user *model.User, mu *s
 
 func scrapeTransactionDetails(ctx context.Context, user *model.User) ([]*model.TransactionDetail, error) {
 	transactions := make([]*model.TransactionDetail, 0)
+
+	//check if there is any record or not
+	var nextClick string
+	var found bool
+	err := chromedp.Run(ctx,
+		chromedp.Sleep(5*time.Second),
+		chromedp.AttributeValue("#transaction_tbl > tbody > tr > td", "class", &nextClick, &found, chromedp.ByID),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if nextClick == "dataTables_empty" {
+		return transactions, nil
+	}
+
+	err = chromedp.Run(ctx,
+		chromedp.DoubleClick("#transaction_tbl > tbody > tr:nth-child(1)", chromedp.ByQuery),
+		chromedp.Sleep(8*time.Second), // Adjust this time as needed
+	)
+	if err != nil {
+		return transactions, err
+	}
 
 	for {
 		transaction, err := scrapeTransactionDetailsTbody(ctx, user)

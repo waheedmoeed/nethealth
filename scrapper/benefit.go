@@ -20,8 +20,6 @@ func StartBenefitScrapper(ctx context.Context, user *model.User, benefitsUrl str
 	}
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(benefitsUrl),
-		chromedp.Sleep(20*time.Second), // Adjust this time as needed
-		chromedp.Navigate(benefitsUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 	)
 	if err != nil {

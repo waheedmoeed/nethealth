@@ -41,7 +41,7 @@ func NewUsersDB(agencyName string) (*UsersDB, error) {
 			return nil, err
 		}
 		db.users[record[0]] = &model.User{
-			ID:            index,
+			ID:            int64(index),
 			FirstName:     record[1],
 			LastName:      record[2],
 			AccountNumber: accountNumber,

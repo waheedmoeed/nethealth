@@ -22,8 +22,6 @@ func StartClaimsScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 	}
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(claimsUrl),
-		chromedp.Sleep(20*time.Second), // Adjust this time as needed
-		chromedp.Navigate(claimsUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 	)
 	if err != nil {

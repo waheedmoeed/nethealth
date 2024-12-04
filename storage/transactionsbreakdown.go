@@ -66,12 +66,12 @@ func renderBreakdownLagger(m core.Maroto, breakdowns []*model.TransactionBreakdo
 
 	for _, breakdown := range breakdowns {
 		recordCols := make([]core.Col, 0)
-		values := []string{breakdown.Date, breakdown.ResonCode, breakdown.Description, breakdown.Amount, breakdown.Reference, breakdown.Payer, breakdown.Batch, breakdown.PDFLink}
+		values := []string{breakdown.Date, breakdown.ResonCode, breakdown.Description, breakdown.Amount, breakdown.Reference, breakdown.Payer, breakdown.Batch, breakdown.UploadedLink}
 		for i, value := range values {
 			if i == len(values)-1 && value != "" {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), "Document", props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3, Hyperlink: &value}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), "Document", props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3, Hyperlink: &value}))
 			} else {
-				recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3}))
+				recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3}))
 			}
 		}
 		m.AddAutoRow(recordCols...)

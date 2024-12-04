@@ -42,7 +42,7 @@ func StoreTransactionsToPDF(fileName string, transactions []*model.Transaction) 
 		recordCols := make([]core.Col, 0)
 		values := []string{transaction.ServiceDate, transaction.ServiceCode, transaction.Description, transaction.ClaimType, transaction.Units, transaction.Rate, transaction.Charge, transaction.Payer, transaction.Batch, transaction.Balance, transaction.Entity}
 		for i, value := range values {
-			recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 7.5, Align: align.Center, Bottom: 3, Top: 3}))
+			recordCols = append(recordCols, text.NewCol(int(widths[i]), value, props.Text{Size: 9, Align: align.Center, Bottom: 3, Top: 3}))
 		}
 		m.AddAutoRow(recordCols...)
 	}
