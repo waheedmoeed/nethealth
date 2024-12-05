@@ -25,6 +25,12 @@ func StartBenefitScrapper(ctx context.Context, user *model.User, benefitsUrl str
 	if err != nil {
 		return err
 	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+	
 	benefits, err := scrapeBenefitTbody(ctx)
 	if err != nil {
 		return err

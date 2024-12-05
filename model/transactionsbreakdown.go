@@ -1,6 +1,10 @@
 package model
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/abdulwaheed/nethealth/utils"
+)
 
 type TransactionDetail struct {
 	ServiceDate          string                  `json:"serviceDate"`
@@ -28,7 +32,10 @@ func (t *TransactionDetail) GetDetailedName() string {
 }
 
 func (t *TransactionBreakdown) GetFileName() string {
-	return strings.ReplaceAll(t.Date+"_"+t.ResonCode+"_"+t.Batch, "/", "_")
+	str := t.Date + "_" + t.ResonCode + "_" + t.Batch
+	str = strings.ReplaceAll(str, "/", "_")
+	str = utils.RemoveBetweenChars(str, "<", ">")
+	return strings.ReplaceAll(str, " ", "")
 }
 
 func (t *TransactionBreakdown) GetFilePath(user *User) string {

@@ -2,11 +2,13 @@ package scrapper
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/abdulwaheed/nethealth/leveldb"
 	"github.com/abdulwaheed/nethealth/model"
 	"github.com/chromedp/chromedp"
 	"golang.org/x/sync/errgroup"
@@ -58,6 +60,13 @@ func startScrapperForUsers(ctx context.Context, users []*model.User) error {
 					}
 					fmt.Printf("error while running scrapper for user %v. Retrying after 5 seconds. Error: %v\n", user, err)
 					time.Sleep(5 * time.Second)
+					var userValidationError *UserValidationError
+					if errors.As(err, &userValidationError) {
+						err = leveldb.PutFailedUser(user)
+						if err == nil {
+							break
+						}
+					}
 				}
 			}
 			return nil

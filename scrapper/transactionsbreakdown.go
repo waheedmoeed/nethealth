@@ -33,6 +33,11 @@ func StartTransactionDetailScrapper(ctx context.Context, user *model.User, mu *s
 		return err
 	}
 
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
 	err = addTransactionBreakdownPDFDownloadJobs(user, transactions)
 	if err != nil {
 		return fmt.Errorf("failed to add claim PDF download jobs: %w", err)

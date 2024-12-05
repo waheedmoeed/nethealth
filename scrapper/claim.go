@@ -27,6 +27,12 @@ func StartClaimsScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 	if err != nil {
 		return err
 	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
 	claims, err := scrapeClaims(ctx, user)
 	if err != nil {
 		return err

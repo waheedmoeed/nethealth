@@ -4,4 +4,6 @@
 .vscode
 # Ignore config.json
 config.json
-/nethealth.l
+/nethealth.leveldb
+/nethealth.failedUsers
+/nethealth.downloadJobs

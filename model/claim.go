@@ -1,5 +1,11 @@
 package model
 
+import (
+	"strings"
+
+	"github.com/abdulwaheed/nethealth/utils"
+)
+
 type Claim struct {
 	CreationDate    string `json:"creationDate"`
 	ServicesFrom    string `json:"servicesFrom"`
@@ -17,7 +23,10 @@ type Claim struct {
 }
 
 func (c *Claim) GetFileName() string {
-	return c.ClaimNumber + "_" + c.PayingAgency
+	str := c.ClaimNumber + "_" + c.PayingAgency
+	str = strings.ReplaceAll(str, "/", "_")
+	str = utils.RemoveBetweenChars(str, "<", ">")
+	return strings.ReplaceAll(str, " ", "")
 }
 
 func (c *Claim) GetFilePath(user *User) string {

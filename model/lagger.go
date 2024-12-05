@@ -2,6 +2,8 @@ package model
 
 import (
 	"strings"
+
+	"github.com/abdulwaheed/nethealth/utils"
 )
 
 type LaggerGroup struct {
@@ -25,7 +27,10 @@ type Lagger struct {
 }
 
 func (l *Lagger) GetFileName() string {
-	return strings.ReplaceAll(l.TxDate+"_"+l.Type, "/", "_")
+	str := l.TxDate + "_" + l.Type
+	str = strings.ReplaceAll(str, "/", "_")
+	str = utils.RemoveBetweenChars(str, "<", ">")
+	return strings.ReplaceAll(str, " ", "")
 }
 
 func (l *Lagger) GetFilePath(user *User) string {
@@ -36,9 +41,11 @@ func (l *Lagger) GetUploadedLink(user *User) string {
 	return BUCKET_URL + user.GetUserDataRoomPath() + "/laggers/" + l.GetFileName() + ".pdf"
 }
 
-
 func (l *Lagger) GetAdjustmentFileName() string {
-	return strings.ReplaceAll(l.TxDate+"_"+l.Type+"_"+l.ControlNumber, "/", "_")
+	str := l.TxDate + "_" + l.Type + "_" + l.ControlNumber
+	str = strings.ReplaceAll(str, "/", "_")
+	str = utils.RemoveBetweenChars(str, "<", ">")
+	return strings.ReplaceAll(str, " ", "")
 }
 
 func (l *Lagger) GetAdjustmentFilePath(user *User) string {

@@ -36,6 +36,11 @@ func StartLaggerScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 		return fmt.Errorf("failed to navigate and interact with lagger URL: %w", err)
 	}
 
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
 	laggerGroup, err := scrapeLagger(ctx, user)
 	if err != nil {
 		return fmt.Errorf("failed to scrape lagger groups: %w", err)
@@ -231,7 +236,7 @@ func addLaggerPDFDownloadJobs(user *model.User, records []*model.LaggerGroup) er
 		for _, lagger := range record.Laggers {
 			if lagger.PDFLink != "" {
 				jobs = append(jobs, &model.Job{
-					FileName: lagger.GetFileName() + "_" + fmt.Sprintf("%s", user.AccountNumber),
+					FileName: lagger.GetFileName() + "_" + fmt.Sprintf("%d", user.AccountNumber),
 					FilePath: lagger.GetFilePath(user),
 					Download: false,
 					PDFLink:  lagger.PDFLink,
@@ -242,7 +247,7 @@ func addLaggerPDFDownloadJobs(user *model.User, records []*model.LaggerGroup) er
 		for _, lagger := range record.EstimatedAdjustments {
 			if lagger.PDFLink != "" {
 				jobs = append(jobs, &model.Job{
-					FileName: lagger.GetAdjustmentFileName() + "_" + fmt.Sprintf("%s", user.AccountNumber),
+					FileName: lagger.GetAdjustmentFileName() + "_" + fmt.Sprintf("%d", user.AccountNumber),
 					FilePath: lagger.GetAdjustmentFilePath(user),
 					Download: false,
 					PDFLink:  lagger.PDFLink,

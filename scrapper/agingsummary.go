@@ -25,6 +25,12 @@ func StartAgingSummaryScrapper(ctx context.Context, user *model.User, agingSumma
 	if err != nil {
 		return err
 	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
 	agingSummary, err := scrapeAgingSummary(ctx)
 	if err != nil {
 		return err
