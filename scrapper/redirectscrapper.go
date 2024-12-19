@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/leveldb"
@@ -14,20 +13,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func StartScrapper(ctx context.Context, config model.Config) error {
-	ctx, cancel := chromedp.NewExecAllocator(ctx, append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))...)
-	defer cancel()
-
-	scrapperContext, cancel := chromedp.NewContext(ctx)
-	defer cancel()
-
-	err := login(scrapperContext, config.Email, config.Password)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Login Success")
-
-	users, err := model.ReadUsersFromCSVFile(ctx, "./userscvs/Ageility at 75 State Street_users copy.csv", "Ageility at 75 State Street")
+func StartScrapper(scrapperContext context.Context, config model.Config) error {
+	users, err := model.ReadUsersFromCSVFile(context.Background(), "./userscvs/current.csv", config.Entity)
 	if err != nil {
 		return err
 	}
@@ -43,6 +30,16 @@ func startScrapperForUsers(ctx context.Context, users []*model.User) error {
 	userChan := make(chan *model.User)
 	var g errgroup.Group
 	g.Go(func() error {
+		latestState, _ := leveldb.GetAgencyState(users[0].Enity)
+		if latestState != "" {
+			for index, user := range users {
+				if user.GetID() == latestState {
+					users = users[index:]
+				}
+			}
+		}
+		fmt.Printf("Latest State: %s\n", latestState)
+
 		for _, user := range users {
 			userChan <- user
 		}
@@ -50,7 +47,7 @@ func startScrapperForUsers(ctx context.Context, users []*model.User) error {
 		return nil
 	})
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 2; i++ {
 		g.Go(func() error {
 			for user := range userChan {
 				for {
@@ -58,15 +55,16 @@ func startScrapperForUsers(ctx context.Context, users []*model.User) error {
 					if err == nil {
 						break
 					}
-					fmt.Printf("error while running scrapper for user %v. Retrying after 5 seconds. Error: %v\n", user, err)
-					time.Sleep(5 * time.Second)
+					leveldb.PutAgencyState(user.Enity, user.GetID())
 					var userValidationError *UserValidationError
 					if errors.As(err, &userValidationError) {
+						fmt.Printf(" while running scrapper for user %v. Error: %v\n", user, err)
 						err = leveldb.PutFailedUser(user)
 						if err == nil {
 							break
 						}
 					}
+					time.Sleep(5 * time.Second)
 				}
 			}
 			return nil
@@ -82,47 +80,54 @@ func startScrapperPerUser(ctx context.Context, user *model.User, userDataPath st
 		return err
 	}
 
-	var mu sync.Mutex
-
 	startTime := time.Now()
 	userCTX, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 
-	err = StartLaggerScrapper(userCTX, user, &mu, user.GetLedgerPageURL(), userDataPath)
+	hasTransactions, err := StartLaggerScrapper(userCTX, user, user.GetLedgerPageURL(), userDataPath)
 	if err != nil {
 		return fmt.Errorf("error while running lagger scrapper for user %s: %w", user.GetID(), err)
 	}
 	fmt.Printf("Lagger scrapper finished for user %s\n", user.GetID())
 
-	err = StartClaimsScrapper(userCTX, user, &mu, user.GetClaimsPageURL(), userDataPath)
-	if err != nil {
-		return fmt.Errorf("error while running claims scrapper for user %s: %w", user.GetID(), err)
-	}
-	fmt.Printf("Claims scrapper finished for user %s\n", user.GetID())
+	if hasTransactions {
 
-	err = StartTransactionScrapper(userCTX, user, user.GetTransactionsPageURL(), userDataPath)
-	if err != nil {
-		return fmt.Errorf("error while running transaction scrapper for user %s: %w", user.GetID(), err)
+		err = StartClaimsScrapper(userCTX, user, user.GetClaimsPageURL(), userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running claims scrapper for user %s: %w", user.GetID(), err)
+		}
+		fmt.Printf("Claims scrapper finished for user %s\n", user.GetID())
+
+		err = StartTransactionScrapper(userCTX, user, user.GetTransactionsPageURL(), userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running transaction scrapper for user %s: %w", user.GetID(), err)
+		}
+		fmt.Printf("Transaction scrapper finished for user %s\n", user.GetID())
+
+		err = StartAgingSummaryScrapper(userCTX, user, user.GetAgingSummaryPageURL(), userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running aging summary scrapper for user %s: %w", user.GetID(), err)
+		}
+		fmt.Printf("Aging summary scrapper finished for user %s\n", user.GetID())
+
+		err = StartTransactionDetailScrapper(userCTX, user, user.GetTransactionsPageURL(), userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while running transaction detail scrapper for user %s: %w", user.GetID(), err)
+		}
+		fmt.Printf("Transaction detail scrapper finished for user %s\n", user.GetID())
+	} else {
+		fmt.Printf("No transactions found for user %s\n", user.GetID())
+		err = handleNoTransactions(userDataPath)
+		if err != nil {
+			return fmt.Errorf("error while handling no transactions for user %s: %w", user.GetID(), err)
+		}
 	}
-	fmt.Printf("Transaction scrapper finished for user %s\n", user.GetID())
 
 	err = StartBenefitScrapper(userCTX, user, user.GetBenefitsPageURL(), userDataPath)
 	if err != nil {
 		return fmt.Errorf("error while running benefit scrapper for user %s: %w", user.GetID(), err)
 	}
 	fmt.Printf("Benefit scrapper finished for user %s\n", user.GetID())
-
-	err = StartAgingSummaryScrapper(userCTX, user, user.GetAgingSummaryPageURL(), userDataPath)
-	if err != nil {
-		return fmt.Errorf("error while running aging summary scrapper for user %s: %w", user.GetID(), err)
-	}
-	fmt.Printf("Aging summary scrapper finished for user %s\n", user.GetID())
-
-	err = StartTransactionDetailScrapper(userCTX, user, &mu, user.GetTransactionsPageURL(), userDataPath)
-	if err != nil {
-		return fmt.Errorf("error while running transaction detail scrapper for user %s: %w", user.GetID(), err)
-	}
-	fmt.Printf("Transaction detail scrapper finished for user %s\n", user.GetID())
 
 	elapsedTime := time.Since(startTime)
 	fmt.Printf("Scrapper finished in %s for user %s\n", elapsedTime, user.GetID())

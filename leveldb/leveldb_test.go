@@ -12,5 +12,6 @@ func TestGetJobs(t *testing.T) {
 	if len(jobs) == 0 {
 		t.Error("no jobs found")
 	}
+	// TestGetAllFailedUsers tests that getting all failed users works correctly.
 	t.Logf("get %d jobs", 20)
 }

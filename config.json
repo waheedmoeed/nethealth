@@ -3,5 +3,8 @@
     "password":"TestNetHealth@1234567890",
     "needToPouplateUsers": false,
     "downloaderUser": "Awaheed",
-    "downloaderPassword":"TestNetHealth@1234567890"
+    "downloaderPassword":"TestNetHealth@1234567890",
+    "entity": "Ageility at Zon Beachside",
+    "debug": true,
+    "headless": false
 }

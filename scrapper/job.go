@@ -19,24 +19,31 @@ import (
 var Token = ""
 
 func StartPDFDownloader(ctx context.Context, config model.Config) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("DownloaderScrapper panicked: %v\n", r)
+		}
+	}()
+
 	err := loginAndSetAuthKey(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to login and set auth key: %w", err)
 	}
 	startTime := time.Now()
 	executeJob(ctx, config)
-	if err != nil {
-		return err
-	}
 	elapsedTime := time.Since(startTime)
-	fmt.Printf("Scrapper finished in %s\n", elapsedTime)
+	fmt.Printf("DownloaderScrapper finished in %s\n", elapsedTime)
 	return nil
 }
 
-func loginAndSetAuthKey(ctx context.Context, config model.Config) error {
+func loginAndSetAuthKey(basectx context.Context, config model.Config) error {
+	ctx, cancel := chromedp.NewExecAllocator(basectx, append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", true))...)
+	defer cancel()
+
 	scrapperContext, cancel := chromedp.NewContext(ctx)
 	defer cancel()
-	err := login(scrapperContext, config.DownloaderUser, config.DownloaderPassword)
+
+	err := Login(scrapperContext, config.DownloaderUser, config.DownloaderPassword)
 	if err != nil {
 		return err
 	}
@@ -58,6 +65,7 @@ func executeJob(ctx context.Context, config model.Config) {
 		}
 		var wg sync.WaitGroup
 		if len(jobs) == 0 {
+			fmt.Println("No downloading jobs found")
 			time.Sleep(time.Second * 2)
 			continue
 		}

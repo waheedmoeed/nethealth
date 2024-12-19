@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/model"
@@ -21,6 +22,47 @@ func StartTransactionScrapper(ctx context.Context, user *model.User, transaction
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(transactionsUrl),
 		chromedp.Sleep(10*time.Second), // Adjust this time as needed
+		chromedp.Navigate(transactionsUrl),
+		chromedp.Sleep(5*time.Second), // Adjust this time as needed
+	)
+	if err != nil {
+		return err
+	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
+	transactions, err := scrapeTransactions(ctx)
+	if err != nil {
+		return err
+	}
+	err = storage.StoreTransactionsToPDF(userDataPath+"/transaction.pdf", transactions)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// #content > section > nav > div > ul > li:nth-child(4) > a
+func StartManualTransactionScrapper(ctx context.Context, user *model.User, userDataPath string) error {
+	userDataPath = fmt.Sprintf("%s/transactions", userDataPath)
+	file, _ := os.Stat(userDataPath + "/transaction.pdf")
+	if file != nil && file.Name() != "" {
+		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
+		return nil
+	}
+	var transactionsUrl string
+	err := chromedp.Run(ctx, chromedp.Location(&transactionsUrl))
+	if err != nil {
+		return err
+	}
+	ledgerUrl := fmt.Sprintf("%s/ledger", transactionsUrl[:strings.LastIndex(transactionsUrl, "/")])
+	transactionsUrl = fmt.Sprintf("%s/transactions", transactionsUrl[:strings.LastIndex(transactionsUrl, "/")])
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(ledgerUrl),
+		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 		chromedp.Navigate(transactionsUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 	)

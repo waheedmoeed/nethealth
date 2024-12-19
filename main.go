@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 
+	"github.com/abdulwaheed/nethealth/leveldb"
 	"github.com/abdulwaheed/nethealth/model"
 	"github.com/abdulwaheed/nethealth/scrapper"
+	"github.com/chromedp/chromedp"
 )
 
 func main() {
@@ -20,8 +20,13 @@ func main() {
 		panic("fail to get the credential files")
 	}
 
+	// err = loadUsersToLevelDB(config)
+	// if err != nil {
+	// 	panic("failed to load users to leveldb")
+	// }
+
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(6)
 
 	go func() {
 		defer wg.Done()
@@ -32,8 +37,145 @@ func main() {
 	}()
 
 	go func() {
+		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
+		if config.Headless {
+			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
+		}
+		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
+		defer cancel()
+
+		opt := []chromedp.ContextOption{}
+		if config.Debug {
+			opt = append(opt, chromedp.WithDebugf(log.Printf))
+		}
+
+		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
+		defer cancel()
 		defer wg.Done()
-		err = scrapper.StartScrapper(context.Background(), config)
+
+		err = scrapper.Login(scrapperContext, "Bottwo", "TestNetHealth@1234567890")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Login Success for manual scrapper")
+
+		err = scrapper.StartManualScrapper(scrapperContext, config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
+		if config.Headless {
+			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
+		}
+		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
+		defer cancel()
+
+		opt := []chromedp.ContextOption{}
+		if config.Debug {
+			opt = append(opt, chromedp.WithDebugf(log.Printf))
+		}
+
+		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
+		defer cancel()
+		defer wg.Done()
+
+		err = scrapper.Login(scrapperContext, "Botthree", "TestNetHealth@1234567890")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Login Success for manual scrapper")
+
+		err = scrapper.StartManualScrapper(scrapperContext, config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
+		if config.Headless {
+			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
+		}
+		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
+		defer cancel()
+
+		opt := []chromedp.ContextOption{}
+		if config.Debug {
+			opt = append(opt, chromedp.WithDebugf(log.Printf))
+		}
+
+		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
+		defer cancel()
+		defer wg.Done()
+
+		err = scrapper.Login(scrapperContext, "Botfour", "TestNetHealth@1234567890")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Login Success for manual scrapper")
+
+		err = scrapper.StartManualScrapper(scrapperContext, config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
+		if config.Headless {
+			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
+		}
+		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
+		defer cancel()
+
+		opt := []chromedp.ContextOption{}
+		if config.Debug {
+			opt = append(opt, chromedp.WithDebugf(log.Printf))
+		}
+
+		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
+		defer cancel()
+		defer wg.Done()
+
+		err = scrapper.Login(scrapperContext, "Botfive", "TestNetHealth@1234567890")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Login Success for manual scrapper")
+
+		err = scrapper.StartManualScrapper(scrapperContext, config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
+		if config.Headless {
+			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
+		}
+		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
+		defer cancel()
+
+		opt := []chromedp.ContextOption{}
+		if config.Debug {
+			opt = append(opt, chromedp.WithDebugf(log.Printf))
+		}
+
+		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
+		defer cancel()
+		defer wg.Done()
+
+		err = scrapper.Login(scrapperContext, config.Email, config.Password)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Login Success for manual scrapper")
+
+		err = scrapper.StartManualScrapper(scrapperContext, config)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -48,39 +190,19 @@ func main() {
 
 }
 
-func countTotalRecords() {
-	files, err := os.ReadDir("userscvs")
+func loadUsersToLevelDB(config model.Config) error {
+	users, err := model.ReadUsersFromCSVFile(context.Background(), "./userscvs/current.csv", config.Entity)
 	if err != nil {
-		return
+		fmt.Println(err)
+		return err
 	}
-	var totalRecords int
-	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".csv") {
-			continue
-		}
-		csvFile, err := os.Open(fmt.Sprintf("userscvs/%s", f.Name()))
-		if err != nil {
 
-		}
-		defer csvFile.Close()
-		csvReader := csv.NewReader(csvFile)
-		records, err := csvReader.ReadAll()
-		if err != nil {
-		}
-		totalRecords += len(records)
+	err = leveldb.PutFailedUsers(users)
+	if err != nil {
+		fmt.Println(err)
 	}
-	fmt.Printf("Total Users to scrape: %d\n", totalRecords)
-	minutesPerRecord := 15
-	totalMinutes := totalRecords * minutesPerRecord
-	totalHours := totalMinutes / 60
-	remainingMinutes := totalMinutes % 60
-	totalDays := totalHours / 24
-	remainingHours := totalHours % 24
-
-	fmt.Printf("It will take approximately for one bot to work %d days, %d hours, and %d minutes to complete all records.\n", totalDays, remainingHours, remainingMinutes)
-	fmt.Printf("It will take approximately %.2f days and 30 bots to work in parallel to complete all records conidering 15 min per user without downloading pdf.\n", float64(totalMinutes)/(1440*30))
+	return err
 }
-
 func loadConfigs() (model.Config, error) {
 	var config model.Config
 	// Read JSON file

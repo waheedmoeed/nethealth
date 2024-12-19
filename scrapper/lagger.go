@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/leveldb"
@@ -15,15 +14,15 @@ import (
 
 const basePath = "#DataTables_Table_1 > tbody > tr"
 
-func StartLaggerScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, laggerURL string, userDataPath string) error {
+func StartLaggerScrapper(ctx context.Context, user *model.User, laggerURL string, userDataPath string) (hasTransactions bool, err error) {
 	userDataPath = fmt.Sprintf("%s/laggers", userDataPath)
 	file, _ := os.Stat(userDataPath + "/lagger.pdf")
 	if file != nil && file.Name() != "" {
 		fmt.Printf("Lagger file found for LaggerDataPath: %s", laggerURL)
-		return nil
+		return true, nil
 	}
 
-	err := chromedp.Run(ctx,
+	err = chromedp.Run(ctx,
 		chromedp.Navigate(laggerURL),
 		chromedp.Sleep(20*time.Second),
 		chromedp.Navigate(laggerURL),
@@ -33,30 +32,77 @@ func StartLaggerScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 		chromedp.Sleep(3*time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to navigate and interact with lagger URL: %w", err)
+		return true, fmt.Errorf("failed to navigate and interact with lagger URL: %w", err)
 	}
 
 	isValid := validateUser(ctx, user)
 	if !isValid {
-		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed for user %s, agency: %s", user.GetID(), user.Enity)}
+		return true, &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed for user %s, agency: %s", user.GetID(), user.Enity)}
 	}
 
 	laggerGroup, err := scrapeLagger(ctx, user)
 	if err != nil {
-		return fmt.Errorf("failed to scrape lagger groups: %w", err)
+		return true, fmt.Errorf("failed to scrape lagger groups: %w", err)
 	}
 
 	err = addLaggerPDFDownloadJobs(user, laggerGroup)
 	if err != nil {
-		return fmt.Errorf("failed to add lagger PDF download jobs: %w", err)
+		return true, fmt.Errorf("failed to add lagger PDF download jobs: %w", err)
 	}
 
 	fileName := fmt.Sprintf("%s/lagger.pdf", userDataPath)
 	err = storage.StoreLaggerGroupsToPDF(fileName, laggerGroup)
 	if err != nil {
-		return fmt.Errorf("failed to store lagger groups to PDF: %w", err)
+		return true, fmt.Errorf("failed to store lagger groups to PDF: %w", err)
 	}
-	return nil
+	if len(laggerGroup) == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func StartLaggerManualScrapper(ctx context.Context, user *model.User, userDataPath string) (hasTransactions bool, err error) {
+	userDataPath = fmt.Sprintf("%s/laggers", userDataPath)
+	file, _ := os.Stat(userDataPath + "/lagger.pdf")
+	if file != nil && file.Name() != "" {
+		fmt.Printf("Lagger file found for LaggerDataPath: %s", userDataPath)
+		return true, nil
+	}
+
+	//#patientSearch_tbl > tbody > tr
+	err = chromedp.Run(ctx,
+		chromedp.WaitVisible(`#cust-btn-show-all-children`, chromedp.ByID),
+		chromedp.Click(`#cust-btn-show-all-children`, chromedp.ByID),
+		chromedp.Sleep(3*time.Second),
+	)
+	if err != nil {
+		return true, fmt.Errorf("failed to navigate and interact with lagger URL: %w", err)
+	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return true, &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
+	laggerGroup, err := scrapeLagger(ctx, user)
+	if err != nil {
+		return true, fmt.Errorf("failed to scrape lagger groups: %w", err)
+	}
+
+	err = addLaggerPDFDownloadJobs(user, laggerGroup)
+	if err != nil {
+		return true, fmt.Errorf("failed to add lagger PDF download jobs: %w", err)
+	}
+
+	fileName := fmt.Sprintf("%s/lagger.pdf", userDataPath)
+	err = storage.StoreLaggerGroupsToPDF(fileName, laggerGroup)
+	if err != nil {
+		return true, fmt.Errorf("failed to store lagger groups to PDF: %w", err)
+	}
+	if len(laggerGroup) == 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func scrapeLagger(ctx context.Context, user *model.User) ([]*model.LaggerGroup, error) {

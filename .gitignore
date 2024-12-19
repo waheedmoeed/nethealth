@@ -7,3 +7,7 @@ config.json
 /nethealth.leveldb
 /nethealth.failedUsers
 /nethealth.downloadJobs
+/nethealth.latestAgencyState
+/bots
+userscvs.zip
+bot

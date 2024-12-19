@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/leveldb"
@@ -13,7 +13,7 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-func StartClaimsScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, claimsUrl string, userDataPath string) error {
+func StartClaimsScrapper(ctx context.Context, user *model.User, claimsUrl string, userDataPath string) error {
 	userDataPath = fmt.Sprintf("%s/claims", userDataPath)
 	file, _ := os.Stat(userDataPath + "/claim.pdf")
 	if file != nil && file.Name() != "" {
@@ -38,7 +38,53 @@ func StartClaimsScrapper(ctx context.Context, user *model.User, mu *sync.Mutex, 
 		return err
 	}
 
-	err = addClaimPDFDownloadJobs(user, mu, claims)
+	err = addClaimPDFDownloadJobs(user, claims)
+	if err != nil {
+		return fmt.Errorf("failed to add claim PDF download jobs: %w", err)
+	}
+
+	err = storage.StoreClaimsToPDF(userDataPath+"/claim.pdf", claims)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func StartManualClaimsScrapper(ctx context.Context, user *model.User, userDataPath string) error {
+	userDataPath = fmt.Sprintf("%s/claims", userDataPath)
+	file, _ := os.Stat(userDataPath + "/claim.pdf")
+	if file != nil && file.Name() != "" {
+		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
+		return nil
+	}
+	var claimsUrl string
+	err := chromedp.Run(ctx, chromedp.Location(&claimsUrl))
+	if err != nil {
+		return err
+	}
+	ledgerUrl := fmt.Sprintf("%s/ledger", claimsUrl[:strings.LastIndex(claimsUrl, "/")])
+	claimsUrl = fmt.Sprintf("%s/claims", claimsUrl[:strings.LastIndex(claimsUrl, "/")])
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(ledgerUrl),
+		chromedp.Sleep(5*time.Second), // Adjust this time as needed
+		chromedp.Navigate(claimsUrl),
+		chromedp.Sleep(5*time.Second), // Adjust this time as needed
+	)
+	if err != nil {
+		return err
+	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
+	claims, err := scrapeClaims(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	err = addClaimPDFDownloadJobs(user, claims)
 	if err != nil {
 		return fmt.Errorf("failed to add claim PDF download jobs: %w", err)
 	}
@@ -114,7 +160,7 @@ func scrapeClaimTbody(ctx context.Context, user *model.User) ([]*model.Claim, er
 			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(3)`, i), &record.ServicesThrough, chromedp.ByQuery),
 			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(4)`, i), &record.ClaimNumber, chromedp.ByQuery),
 			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(5)`, i), &record.ClaimType, chromedp.ByQuery),
-			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(6) > a`, i), &record.BatchNumber, chromedp.ByQuery),
+			chromedp.EvaluateAsDevTools(fmt.Sprintf(`document.querySelector('#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(6) > a')?.innerHtml || ""`, i), &record.BatchNumber),
 			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(7)`, i), &record.Entity, chromedp.ByQuery),
 			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(8)`, i), &record.PayingAgency, chromedp.ByQuery),
 			chromedp.InnerHTML(fmt.Sprintf(`#claims_tbl > tbody > tr:nth-child(%d) > td:nth-child(9)`, i), &record.PayerPlan, chromedp.ByQuery),
@@ -135,7 +181,7 @@ func scrapeClaimTbody(ctx context.Context, user *model.User) ([]*model.Claim, er
 	return records, nil
 }
 
-func addClaimPDFDownloadJobs(user *model.User, mu *sync.Mutex, records []*model.Claim) error {
+func addClaimPDFDownloadJobs(user *model.User, records []*model.Claim) error {
 	jobs := []*model.Job{}
 	for _, record := range records {
 		if record.PDFLink != "" {

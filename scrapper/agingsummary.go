@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/abdulwaheed/nethealth/model"
@@ -19,6 +20,46 @@ func StartAgingSummaryScrapper(ctx context.Context, user *model.User, agingSumma
 		return nil
 	}
 	err := chromedp.Run(ctx,
+		chromedp.Navigate(agingSummaryUrl),
+		chromedp.Sleep(5*time.Second), // Adjust this time as needed
+	)
+	if err != nil {
+		return err
+	}
+
+	isValid := validateUser(ctx, user)
+	if !isValid {
+		return &UserValidationError{Message: "user validation failed", Err: fmt.Errorf("user validation failed at transaction for user %s, agency: %s", user.GetID(), user.Enity)}
+	}
+
+	agingSummary, err := scrapeAgingSummary(ctx)
+	if err != nil {
+		return err
+	}
+	err = storage.StoreAgingSummaryToPDF(userDataPath+"/agingsummary.pdf", agingSummary)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func StartManualAgingSummaryScrapper(ctx context.Context, user *model.User, userDataPath string) error {
+	userDataPath = fmt.Sprintf("%s/agingsummary", userDataPath)
+	file, _ := os.Stat(userDataPath + "/agingsummary.pdf")
+	if file != nil && file.Name() != "" {
+		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
+		return nil
+	}
+	var agingSummaryUrl string
+	err := chromedp.Run(ctx, chromedp.Location(&agingSummaryUrl))
+	if err != nil {
+		return err
+	}
+	ledgerUrl := fmt.Sprintf("%s/ledger", agingSummaryUrl[:strings.LastIndex(agingSummaryUrl, "/")])
+	agingSummaryUrl = fmt.Sprintf("%s/agingSummary", agingSummaryUrl[:strings.LastIndex(agingSummaryUrl, "/")])
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(ledgerUrl),
+		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 		chromedp.Navigate(agingSummaryUrl),
 		chromedp.Sleep(5*time.Second), // Adjust this time as needed
 	)
