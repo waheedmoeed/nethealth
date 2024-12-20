@@ -16,7 +16,7 @@ func StartAgingSummaryScrapper(ctx context.Context, user *model.User, agingSumma
 	userDataPath = fmt.Sprintf("%s/agingsummary", userDataPath)
 	file, _ := os.Stat(userDataPath + "/agingsummary.pdf")
 	if file != nil && file.Name() != "" {
-		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
+		fmt.Printf("AgingSummary file found for LaggerDataPath: %s\n", userDataPath)
 		return nil
 	}
 	err := chromedp.Run(ctx,

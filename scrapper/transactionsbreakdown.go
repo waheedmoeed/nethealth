@@ -17,7 +17,7 @@ func StartTransactionDetailScrapper(ctx context.Context, user *model.User, trans
 	userDataPath = fmt.Sprintf("%s/transactionbreakdowns", userDataPath)
 	file, _ := os.Stat(userDataPath + "/transactionbreakdown.pdf")
 	if file != nil && file.Name() != "" {
-		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
+		fmt.Printf("Transaction Breakdown file found for LaggerDataPath: %s\n", userDataPath)
 		return nil
 	}
 

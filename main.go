@@ -20,13 +20,13 @@ func main() {
 		panic("fail to get the credential files")
 	}
 
-	// err = loadUsersToLevelDB(config)
-	// if err != nil {
-	// 	panic("failed to load users to leveldb")
-	// }
+	err = loadUsersToLevelDB(config)
+	if err != nil {
+		panic("failed to load users to leveldb")
+	}
 
 	var wg sync.WaitGroup
-	wg.Add(6)
+	wg.Add(len(config.Accounts) + 1)
 
 	go func() {
 		defer wg.Done()
@@ -36,150 +36,36 @@ func main() {
 		}
 	}()
 
-	go func() {
-		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
-		if config.Headless {
-			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
-		}
-		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
-		defer cancel()
+	for _, account := range config.Accounts {
+		go func() {
+			broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
+			if config.Headless {
+				broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
+			}
+			ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
+			defer cancel()
 
-		opt := []chromedp.ContextOption{}
-		if config.Debug {
-			opt = append(opt, chromedp.WithDebugf(log.Printf))
-		}
+			opt := []chromedp.ContextOption{}
+			if config.Debug {
+				opt = append(opt, chromedp.WithDebugf(log.Printf))
+			}
 
-		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
-		defer cancel()
-		defer wg.Done()
+			scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
+			defer cancel()
+			defer wg.Done()
 
-		err = scrapper.Login(scrapperContext, "Bottwo", "TestNetHealth@1234567890")
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("Login Success for manual scrapper")
+			err = scrapper.Login(scrapperContext, account.Email, account.Password)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println("Login Success for manual scrapper")
 
-		err = scrapper.StartManualScrapper(scrapperContext, config)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	go func() {
-		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
-		if config.Headless {
-			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
-		}
-		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
-		defer cancel()
-
-		opt := []chromedp.ContextOption{}
-		if config.Debug {
-			opt = append(opt, chromedp.WithDebugf(log.Printf))
-		}
-
-		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
-		defer cancel()
-		defer wg.Done()
-
-		err = scrapper.Login(scrapperContext, "Botthree", "TestNetHealth@1234567890")
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("Login Success for manual scrapper")
-
-		err = scrapper.StartManualScrapper(scrapperContext, config)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	go func() {
-		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
-		if config.Headless {
-			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
-		}
-		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
-		defer cancel()
-
-		opt := []chromedp.ContextOption{}
-		if config.Debug {
-			opt = append(opt, chromedp.WithDebugf(log.Printf))
-		}
-
-		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
-		defer cancel()
-		defer wg.Done()
-
-		err = scrapper.Login(scrapperContext, "Botfour", "TestNetHealth@1234567890")
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("Login Success for manual scrapper")
-
-		err = scrapper.StartManualScrapper(scrapperContext, config)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	go func() {
-		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
-		if config.Headless {
-			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
-		}
-		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
-		defer cancel()
-
-		opt := []chromedp.ContextOption{}
-		if config.Debug {
-			opt = append(opt, chromedp.WithDebugf(log.Printf))
-		}
-
-		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
-		defer cancel()
-		defer wg.Done()
-
-		err = scrapper.Login(scrapperContext, "Botfive", "TestNetHealth@1234567890")
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("Login Success for manual scrapper")
-
-		err = scrapper.StartManualScrapper(scrapperContext, config)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	go func() {
-		broswerOpts := append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))
-		if config.Headless {
-			broswerOpts = append(broswerOpts, chromedp.Flag("headless", true))
-		}
-		ctx, cancel := chromedp.NewExecAllocator(context.Background(), broswerOpts...)
-		defer cancel()
-
-		opt := []chromedp.ContextOption{}
-		if config.Debug {
-			opt = append(opt, chromedp.WithDebugf(log.Printf))
-		}
-
-		scrapperContext, cancel := chromedp.NewContext(ctx, opt...)
-		defer cancel()
-		defer wg.Done()
-
-		err = scrapper.Login(scrapperContext, config.Email, config.Password)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("Login Success for manual scrapper")
-
-		err = scrapper.StartManualScrapper(scrapperContext, config)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+			err = scrapper.StartManualScrapper(scrapperContext, config)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
 
 	wg.Wait()
 
@@ -191,11 +77,23 @@ func main() {
 }
 
 func loadUsersToLevelDB(config model.Config) error {
-	users, err := model.ReadUsersFromCSVFile(context.Background(), "./userscvs/current.csv", config.Entity)
+	users, err := leveldb.GetFailedUsers()
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
+
+	fmt.Printf("Users already exists in DB: %d\n", len(users))
+	if len(users) > 0 {
+		return nil
+	}
+
+	users, err = model.ReadUsersFromCSVFile(context.Background(), "./userscvs/current.csv", config.Entity)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	fmt.Printf("Total users: %d\n", len(users))
 
 	err = leveldb.PutFailedUsers(users)
 	if err != nil {
@@ -203,6 +101,7 @@ func loadUsersToLevelDB(config model.Config) error {
 	}
 	return err
 }
+
 func loadConfigs() (model.Config, error) {
 	var config model.Config
 	// Read JSON file

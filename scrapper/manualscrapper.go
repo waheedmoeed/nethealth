@@ -75,7 +75,7 @@ func startScrapperForFailedUsers(ctx context.Context) error {
 						cancel()
 						err = leveldb.DeleteFailedUser(user)
 						if err != nil {
-							fmt.Println("Error while putting failed user: ", err)
+							fmt.Println("Error while deleting failed user: ", err)
 							continue
 						}
 						break

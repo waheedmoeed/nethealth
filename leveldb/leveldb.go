@@ -18,27 +18,27 @@ const downloadJobPath = "./nethealth.downloadJobs"
 const failedUserPath = "./nethealth.failedUsers"
 const latestAgencyStatePath = "./nethealth.latestAgencyState"
 
-// func init() {
-// 	var err error
-// 	jobDB, err := leveldb.OpenFile(downloadJobPath, nil)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	failedUsersDB, err := leveldb.OpenFile(failedUserPath, nil)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+func init() {
+	var err error
+	jobDB, err := leveldb.OpenFile(downloadJobPath, nil)
+	if err != nil {
+		panic(err)
+	}
+	failedUsersDB, err := leveldb.OpenFile(failedUserPath, nil)
+	if err != nil {
+		panic(err)
+	}
 
-// 	latestAgencyStateDB, err := leveldb.OpenFile(latestAgencyStatePath, nil)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	latestAgencyStateDB, err := leveldb.OpenFile(latestAgencyStatePath, nil)
+	if err != nil {
+		panic(err)
+	}
 
-// 	downloadJobs = jobDB
-// 	failedUsers = failedUsersDB
-// 	failedIter = failedUsers.NewIterator(nil, nil)
-// 	latestAgencyState = latestAgencyStateDB
-// }
+	downloadJobs = jobDB
+	failedUsers = failedUsersDB
+	failedIter = failedUsers.NewIterator(nil, nil)
+	latestAgencyState = latestAgencyStateDB
+}
 
 func PutJob(job *model.Job) error {
 	document, err := json.Marshal(job)

@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetAllFailedUsers(t *testing.T) {
-	failedUsersDB, err := leveldb.OpenFile("nethealth.failedUsers", nil)
+	failedUsersDB, err := leveldb.OpenFile("bots/bot5/nethealth.failedUsers", nil)
 	if err != nil {
 		panic(err)
 	}

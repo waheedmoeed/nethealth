@@ -47,7 +47,7 @@ func StartManualBenefitScrapper(ctx context.Context, user *model.User, userDataP
 	userDataPath = fmt.Sprintf("%s/benefits", userDataPath)
 	file, _ := os.Stat(userDataPath + "/benefit.pdf")
 	if file != nil && file.Name() != "" {
-		fmt.Printf("Claim file found for LaggerDataPath: %s", userDataPath)
+		fmt.Printf("Benefit file found for LaggerDataPath: %s\n", userDataPath)
 		return nil
 	}
 	var benefitsVerificationUrl string

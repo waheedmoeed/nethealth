@@ -29,6 +29,8 @@ func StartPDFDownloader(ctx context.Context, config model.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to login and set auth key: %w", err)
 	}
+
+	go autoUpdateAuthToken(ctx, config)
 	startTime := time.Now()
 	executeJob(ctx, config)
 	elapsedTime := time.Since(startTime)
@@ -118,10 +120,6 @@ func downloadAndSavePDF(ctx context.Context, config model.Config, url string, fi
 	if res.StatusCode != http.StatusOK {
 		if res.StatusCode == http.StatusUnauthorized {
 			fmt.Println("Unauthorized")
-			err = loginAndSetAuthKey(ctx, config)
-			if err != nil {
-				return fmt.Errorf("failed to relogin and set auth key: %w", err)
-			}
 		}
 		return fmt.Errorf("bad status: %s", res.Status)
 	}
@@ -163,4 +161,15 @@ func getCookiesKeys(ctx context.Context) (string, error) {
 	}
 
 	return authKey, nil
+}
+
+func autoUpdateAuthToken(ctx context.Context, config model.Config) {
+	time.Sleep(time.Minute * 15)
+	for {
+		err := loginAndSetAuthKey(ctx, config)
+		if err != nil {
+			fmt.Printf("failed to relogin for downloads job and set auth key: %w", err)
+		}
+		time.Sleep(time.Second * 5)
+	}
 }
