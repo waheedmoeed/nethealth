@@ -77,18 +77,13 @@ func main() {
 }
 
 func loadUsersToLevelDB(config model.Config) error {
-	users, err := leveldb.GetFailedUsers()
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	fmt.Printf("Users already exists in DB: %d\n", len(users))
-	if len(users) > 0 {
+	exists := leveldb.HasFailedUsers()
+	if exists {
+		fmt.Printf("Users already exists in DB\n")
 		return nil
 	}
 
-	users, err = model.ReadUsersFromCSVFile(context.Background(), "./userscvs/current.csv", config.Entity)
+	users, err := model.ReadUsersFromCSVFile(context.Background(), "./userscvs/current.csv", config.Entity)
 	if err != nil {
 		fmt.Println(err)
 		return err

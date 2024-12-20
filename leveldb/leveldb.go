@@ -105,10 +105,16 @@ func PutFailedUser(user *model.User) error {
 	return failedUsers.Put([]byte(user.GetID()), document, nil)
 }
 
+func HasFailedUsers() bool {
+	iter := failedUsers.NewIterator(nil, nil)
+	defer iter.Release()
+	return iter.Next()
+}
+
 func GetFailedUsers() ([]*model.User, error) {
 	var users []*model.User
 	for failedIter.Next() {
-		if len(users) == 20 {
+		if len(users) == 5 {
 			break
 		}
 		u := model.User{}
